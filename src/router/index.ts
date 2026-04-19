@@ -1,10 +1,10 @@
 import { createRouter, createWebHistory } from 'vue-router'
 // lego cny
 import Index from '../views/Index/index.vue'
+import Taste from '../views/Taste/index.vue'
 import Check from '../views/Check/index.vue'
 import Backup from '../views/Backup/index.vue'
 import Game from '../views/Game/index.vue'
-import Introduce from '../views/Introduce/index.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -20,6 +20,11 @@ const router = createRouter({
       component: Index
     },
     {
+      path: '/taste',
+      name: 'taste',
+      component: Taste
+    },
+    {
       path: '/check',
       name: 'check',
       component: Check
@@ -28,11 +33,6 @@ const router = createRouter({
       path: '/backup',
       name: 'backup',
       component: Backup
-    },
-    {
-      path: '/introduce',
-      name: 'introduce',
-      component: Introduce
     },
     {
       path: '/game',

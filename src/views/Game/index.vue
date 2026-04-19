@@ -18,15 +18,15 @@ console.log(route.query.city);
 /**
  * 页面初始化时，只初始化一次微信 JSSDK
  */
-onMounted(async () => {
-  try {
-    await initWechatJSSDK(['scanQRCode'])
-    console.log('微信 JSSDK 初始化完成')
-  } catch (err) {
-    console.error(err)
-    Toast('微信初始化失败')
-  }
-})
+// onMounted(async () => {
+//   try {
+//     await initWechatJSSDK(['scanQRCode'])
+//     console.log('微信 JSSDK 初始化完成')
+//   } catch (err) {
+//     console.error(err)
+//     Toast('微信初始化失败')
+//   }
+// })
 
 
 // 游戏相关

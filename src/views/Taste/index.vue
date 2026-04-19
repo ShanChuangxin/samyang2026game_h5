@@ -21,9 +21,10 @@ const loadUserInfo = async () => {
 onMounted(() => loadUserInfo());
 
 const router = useRouter();
-function navigateToTastePage() {
-  router.replace('/taste');
+function navigateToGamePage() {
+  router.replace('/game');
 }
+
 
 
 
@@ -31,12 +32,13 @@ function navigateToTastePage() {
 
 <template>
   <div class="page-body">
-    <img src="https://www.mbcstyle.cn/projects/static/samyang2026game/index/bg.jpg" alt="" class="bg" @click="navigateToTastePage">
+    <img src="https://www.mbcstyle.cn/projects/static/samyang2026game/taste/bg.jpg" alt="" class="bg">
     <div class="logo-brand"></div>
     <div class="logo-noodle"></div>
-    <div class="introduce"></div>
+    <div class="slogan"></div>
+    <div class="noodles"></div>
 
-    <div class="tips"></div>
+    <div class="btn-taste" @click="navigateToGamePage"></div>
     
   </div>
 
@@ -72,25 +74,35 @@ function navigateToTastePage() {
     background: url("https://www.mbcstyle.cn/projects/static/samyang2026game/index/logo-noodle.png") top center no-repeat;
     background-size: 100% 100%;
   }
-  .introduce {
+  .slogan {
     position: absolute;
-    top: 1rem;
+    top: 1.2rem;
     margin-left: 50%;
     transform: translateX(-50%);
-    width: 3.3833rem;
-    height: 1.86rem;
-    background: url("https://www.mbcstyle.cn/projects/static/samyang2026game/index/introduce.png") top center no-repeat;
+    width: 3.5533rem;
+    height: 2.56rem;
+    background: url("https://www.mbcstyle.cn/projects/static/samyang2026game/taste/slogan.png") top center no-repeat;
+    background-size: 100% 100%;
+  }
+  .noodles {
+    position: absolute;
+    top: 4rem;
+    margin-left: 50%;
+    transform: translateX(-50%);
+    width: 4.8866rem;
+    height: 3.9333rem;
+    background: url("https://www.mbcstyle.cn/projects/static/samyang2026game/taste/noodles.png") top center no-repeat;
     background-size: 100% 100%;
   }
 
-  .tips {
+  .btn-taste {
     position: absolute;
-    bottom: .6rem;
+    bottom: .8rem;
     margin-left: 50%;
     transform: translateX(-50%);
-    width: 3.566rem;
-    height: 1.1066rem;
-    background: url("https://www.mbcstyle.cn/projects/static/samyang2026game/index/tips.png") top center no-repeat;
+    width: 2.58rem;
+    height: .66rem;
+    background: url("https://www.mbcstyle.cn/projects/static/samyang2026game/taste/btn-taste.png") top center no-repeat;
     background-size: 100% 100%;
   }
  
