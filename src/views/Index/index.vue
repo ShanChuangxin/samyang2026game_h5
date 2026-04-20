@@ -36,6 +36,10 @@ function navigateToTastePage() {
     <div class="logo-noodle"></div>
     <div class="introduce"></div>
 
+    <div class="gif-container">
+      <img src="https://www.mbcstyle.cn/projects/static/samyang2026game/index/giphy.gif" alt="" class="bg" @click="navigateToTastePage">
+    </div>
+
     <div class="tips"></div>
     
   </div>
@@ -81,6 +85,18 @@ function navigateToTastePage() {
     height: 1.86rem;
     background: url("https://www.mbcstyle.cn/projects/static/samyang2026game/index/introduce.png") top center no-repeat;
     background-size: 100% 100%;
+  }
+
+  .gif-container {
+    position: absolute;
+    top: 4.1rem;
+    margin-left: 50%;
+    transform: translateX(-50%);
+    img {
+      // 原尺寸3.2rem
+      width: 4rem;
+      height: 4rem;
+    }
   }
 
   .tips {

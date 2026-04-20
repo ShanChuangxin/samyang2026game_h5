@@ -1,4 +1,4 @@
-<!-- 工作人员核销奖品 -->
+<!-- 游戏界面 -->
 <script setup lang="ts">
 // 不校验ts
 // @ts-nocheck
@@ -28,10 +28,39 @@ console.log(route.query.city);
 //   }
 // })
 
+// 显示游戏规则弹窗
+const isPopRuler = ref(false);
+function startGame() {
+    // 关闭弹窗
+    isPopRuler.value = false;   
+    
+    // 开启倒计时
+}
+
+// 倒计时弹窗
+const isPopCountdown = ref(false);
+const countdown_num = ref(3);
+// 倒计时函数
+function countDown() {
+    countdown_num.value = 3;
+    const timer = setInterval(() => {
+        countdown_num.value--;
+        if (countdown_num.value <=0 ) {
+            clearInterval(timer);
+            isPopCountdown.value = false;   // 隐藏倒计时
+            countdown_num.value = 3;
+        }
+    })
+}
+
 
 // 游戏相关
 const gameRef = ref(null);
 let game: Phaser.Game | null = null;
+
+// vue和Phaser共用变量（通过挂载时，配置config中传入）
+const score = ref(0);   // 分值（辣度值）
+const isRunningGame = ref(false)  // 是否启动游戏
 
 onMounted(() => {
     const config = {
@@ -44,6 +73,10 @@ onMounted(() => {
             preload,
             create,
             update,
+            data: { // 用于Vue和Phaser共用变量，Phaser使用方式为：this.sys.settings.data.xx
+                score,
+                isRunningGame
+            }
         }
     };
     game = new Phaser.Game(config);
@@ -138,7 +171,22 @@ function update(this: Phaser.Scene) {
 
 <template>
     <div class="page-body">
+        <!-- 游戏窗口 -->
         <div id="game-container" ref="gameRef"></div>
+
+
+        <!-- 倒计时弹窗 -->
+        <div v-show="isPopCountdown" class="countdown-container">
+            <img :src="`https://www.mbcstyle.cn/projects/static/samyang2026game/game/count-down-${countdown_num}.png`" alt="">
+        </div>
+
+        <!-- 游戏规则弹窗 -->
+        <div v-show="isPopRuler" class="ruler-container">
+            <div class="ruler">
+                <div class="ruler-btn" @click="startGame"></div>
+            </div>
+        </div>
+
     </div>
 </template>
 
@@ -149,6 +197,52 @@ function update(this: Phaser.Scene) {
     width: 100vw;
     height: 100vh;
     overflow: hidden;
-     
+
+    // 倒计时弹窗
+    .countdown-container {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background-color: rgba(0, 0, 0, .4);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        img {
+            width: 2.14rem;
+            height: 2.1333rem;
+        } 
+    } 
+
+    // 游戏规则弹窗
+    .ruler-container {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background-color: rgba(0, 0, 0, .4);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        .ruler {
+            position: relative;
+            width: 3.82rem;
+            height: 4.0933rem;
+            background: url("https://www.mbcstyle.cn/projects/static/samyang2026game/game/ruler.png") top center no-repeat;
+            background-size: 100% 100%;
+            .ruler-btn {
+                position: absolute;
+                bottom: 0;
+                margin-left: 50%;
+                transform: translateX(-50%);
+                width: 2.2rem;
+                height: .51rem;
+                // background-color: red;
+            }
+
+        }
+    } 
 }
 </style>
