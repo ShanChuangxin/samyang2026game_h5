@@ -22,6 +22,11 @@ onMounted(() => loadUserInfo());
 
 const router = useRouter();
 function navigateToGamePage() {
+  Toast("敬请期待");
+  return;
+  router.replace('/game');
+}
+function debugToGamePage() {
   router.replace('/game');
 }
 
@@ -34,7 +39,7 @@ function navigateToGamePage() {
   <div class="page-body">
     <img src="https://www.mbcstyle.cn/projects/static/samyang2026game/taste/bg.jpg" alt="" class="bg">
     <div class="logo-brand"></div>
-    <div class="logo-noodle"></div>
+    <div class="logo-noodle" @click="debugToGamePage"></div>
     <div class="slogan"></div>
     <div class="noodles"></div>
 
