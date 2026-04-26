@@ -56,6 +56,25 @@ const maskHeight = computed(() => {
 const headBottom = computed(() => {
     return Math.min(percent.value + 18, 93) + '%';
 });
+// 分数的位置（位于心的位置上方）
+const scoreBottom = computed(() => {
+    return Math.min(percent.value + 30, 105) + '%';
+})
+// 加分动效
+const floatingScores = ref([])
+let add_score_id = 0
+function addScoreEffect(value) {
+    console.log("触发加分特效");
+  const item = {
+    id: add_score_id++,
+    value
+  }
+  floatingScores.value.push(item)
+  // 1秒后删除
+  setTimeout(() => {
+    floatingScores.value = floatingScores.value.filter(i => i.id !== item.id)
+  }, 1000)
+}
 
 // 游戏相关
 const gameRef = ref(null);
@@ -110,6 +129,10 @@ function preload(this: Phaser.Scene) {
     this.load.image('candy-purple', '/projects/samyang2026game/images/game/candy-purple.png');
     this.load.image('candy-white', '/projects/samyang2026game/images/game/candy-white.png');
     this.load.image('candy-yellow', '/projects/samyang2026game/images/game/candy-yellow.png');
+
+    // 辣椒
+    this.load.image('chilli', '/projects/samyang2026game/images/game/chilli.png');
+
 
     // 炸弹
     this.load.image('bomb-1', '/projects/samyang2026game/images/game/bomb-1.png');
@@ -174,6 +197,7 @@ function create(this: Phaser.Scene) {
     { key: 'candy-purple', type: 'candy' },
     { key: 'candy-white', type: 'candy' },
     { key: 'candy-yellow', type: 'candy' },
+    { key: 'chilli', type: 'chilli' },
     { key: 'bomb-1', type: 'bomb' },
     { key: 'bomb-2', type: 'bomb' },
     ];
@@ -231,21 +255,64 @@ function update(this: Phaser.Scene) {
         if (distance < 50) {
 
             if (item.type === 'candy') {
-                // 🍬 加分
-                sharedState.score.value += 1
+                // 糖果加分
+                sharedState.score.value += 1;
+                // 触发加分动画
+                addScoreEffect(1);
+            }
+            if (item.type === 'chilli') {
+                // 辣椒加分
+                sharedState.score.value += 3;
+                addScoreEffect(3);
             }
 
             if (item.type === 'bomb') {
-                // 💣 眩晕
+                // 如果连续碰撞，只延长时间，不重新播放动画
+                // if (this.isStunned) {
+                //     // ❗只延长时间，不重新播放动画
+                //     this.stunTimer.reset({
+                //         delay: 2000,
+                //         callback: this.stunTimer.callback,
+                //         callbackScope: this
+                //     })
+                //     return
+                // }
+
                 this.isStunned = true
-
-                // 换人物图
+                // ❗先清掉所有旧动画
+                this.tweens.killTweensOf(this.player)
+                // 重置状态（非常关键）
+                this.player.alpha = 1
+                this.player.x = this.player.x
+                // 换图
                 this.player.setTexture('player-dizzy')
-
+                // 屏幕震动
+                this.cameras.main.shake(200, 0.01)
+                // 闪烁
+                this.tweens.add({
+                    targets: this.player,
+                    alpha: 0.3,
+                    duration: 100,
+                    yoyo: true,
+                    repeat: 10
+                })
+                // 抖动（用 fromTo 更安全）
+                this.tweens.add({
+                    targets: this.player,
+                    x: { from: this.player.x - 10, to: this.player.x + 10 },
+                    duration: 50,
+                    yoyo: true,
+                    repeat: 10
+                })
+                // ❗ 清掉旧的延时（避免叠加）
+                if (this.stunTimer) {
+                    this.stunTimer.remove()
+                }
                 // 2秒恢复
-                this.time.delayedCall(2000, () => {
+                this.stunTimer = this.time.delayedCall(2000, () => {
                     this.isStunned = false
                     this.player.setTexture('player')
+                    this.player.alpha = 1
                 })
             }
 
@@ -292,15 +359,25 @@ function spawnItem (this: Phaser.Scene) {
         <!-- 游戏倒计时 -->
         <div class="game-timer-counter">{{ gameTimeCounter }}</div>
 
-        <!-- debug-显示游戏分值 -->
-        <div class="debug-score">{{ score }}</div>
-
         <!-- 甜辣值进度条 -->
         <div class="bar-wrapper">
+            <!-- 分值进度条 -->
             <div class="bar-mask" :style="{ height: maskHeight }">
                 <div class="bar-fill"></div>
             </div>
             <div class="bar-head" :style="{ bottom: headBottom }"></div>
+            <!-- 所加分值 -->
+            <div class="add-score" :style="{ bottom: headBottom }">
+                <div 
+                    v-for="item in floatingScores"
+                    :key="item.id"
+                    class="score-item" 
+                >
+                    +{{ item.value }}
+                </div>
+            </div>
+            <!-- 当前分值 -->
+            <div class="score-record" :style="{ bottom: scoreBottom }">{{ score }}</div>
         </div>
 
 
@@ -333,16 +410,6 @@ function spawnItem (this: Phaser.Scene) {
         top: 0;
         margin-left: 50%;
         transform: translateX(-50%);
-        color: white;
-        font-size: .5rem;
-        font-weight: 900;
-    }
-
-    // debug显示游戏分值
-    .debug-score {
-        position: absolute;
-        top: 0;
-        right: .05rem;
         color: white;
         font-size: .5rem;
         font-weight: 900;
@@ -388,6 +455,47 @@ function spawnItem (this: Phaser.Scene) {
             transition: bottom 0.2s ease;
             // z-index: 2;
             // background: red;
+        }
+        // 分值记录
+        .score-record {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            bottom: 0rem;
+            transition: bottom 0.2s ease;
+
+            color: white;
+            font-size: .45rem;
+            font-weight: 900;
+        }
+        // 加分记录
+        .add-score {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            bottom: 0rem;
+            margin-left: 0rem;
+
+            .score-item {
+                position: absolute;
+                left: 0rem;
+                bottom: 0;
+                color: #ff4d4f;
+                font-size: .35rem;
+                font-weight: 800;
+                animation: floatUp 1s ease-out forwards;
+            }
+            /* 动画 */
+            @keyframes floatUp {
+                0% {
+                    transform: translate(0, 0);
+                    opacity: 1;
+                }
+                100% {
+                    transform: translate(0.5rem, -1rem);
+                    opacity: 0;
+                }
+            }
         }
     }
 
