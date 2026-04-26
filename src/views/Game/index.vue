@@ -12,12 +12,41 @@ import * as Phaser from 'phaser'
 const route = useRoute();
 console.log(route.query.city);
 
+// 游戏结束相关
+// 控制游戏结束
+const isPopGameOver = ref(false);
+// 重新开始游戏
+function restartGame () {
+    console.log("重新开始游戏");
+    // 1. 关闭游戏结束提醒
+    isPopGameOver.value = false;
+    // 2. 重置游戏
+    isPopRuler.value = true;    // 游戏规则弹窗
+    isPopCountdown.value = false;   // 关闭游戏倒计时弹窗
+    score.value = 0;    // 重置分数
+    gameTimeCounter.value = gameTimeLimit;  // 重置倒计时
+    // 3. 关键：重置 Phaser 场景状态
+    const scene = game.scene.getScene('main')
+    scene.gameStarted = false
+    // 清理残留 timer（很重要）
+    if (scene.spawnTimer) {
+        scene.spawnTimer.remove()
+    }
+    if (scene.timer) {
+        scene.timer.remove()
+    }
+    // 清掉场上所有物体
+    if (scene.items) {
+        scene.items.forEach(item => item.destroy())
+        scene.items = []
+    }
+}
+
 // 显示游戏规则弹窗
 const isPopRuler = ref(true);
 function startGame() {
     // 关闭弹窗
     isPopRuler.value = false;   
-    
     // 开启倒计时
     countDown();
 }
@@ -35,7 +64,6 @@ function countDown() {
             clearInterval(timer);
             isPopCountdown.value = false;   // 隐藏倒计时
             countdown_num.value = 3;
-
             // 开启游戏
             sharedState.isRunningGame.value = true;
             // 通知 Phaser 开始游戏
@@ -81,14 +109,15 @@ const gameRef = ref(null);
 let game: Phaser.Game | null = null;
 
 // vue和Phaser共用变量（通过挂载时，配置config中传入）
-const gameTimeLimit = 65;
+const gameTimeLimit = 60;
 const score = ref(0);   // 分值（辣度值）
 const isRunningGame = ref(false);  // 是否启动游戏
 const gameTimeCounter = ref(gameTimeLimit);  // 游戏倒计时
 const sharedState = {
     score,
     isRunningGame,
-    gameTimeCounter
+    gameTimeCounter,
+    isPopGameOver
 }
 
 onMounted(() => {
@@ -103,10 +132,6 @@ onMounted(() => {
             preload,
             create,
             update,
-            // data: { // 用于Vue和Phaser共用变量，Phaser使用方式为：this.sys.settings.data.xx
-            //     score,
-            //     isRunningGame
-            // }
         }
     };
     game = new Phaser.Game(config);
@@ -118,26 +143,21 @@ onBeforeUnmount(() => {
 });
 //  ===== Phaser 生命周期 =====
 function preload(this: Phaser.Scene) {
-    // this.load.image('bg', "https://www.mbcstyle.cn/projects/static/samyang2026game/game/bg.jpg");
-    // this.load.image('player', 'https://www.mbcstyle.cn/projects/static/samyang2026game/game/peppo-normal.png');
+    // 加载图片资源
     this.load.image('bg', "/projects/samyang2026game/images/game/bg.jpg");
     this.load.image('player', '/projects/samyang2026game/images/game/peppo-normal.png');
     this.load.image('player-dizzy', '/projects/samyang2026game/images/game/peppo-dizzy.png');
-
-    // 糖果
     this.load.image('candy-pink', '/projects/samyang2026game/images/game/candy-pink.png');
     this.load.image('candy-purple', '/projects/samyang2026game/images/game/candy-purple.png');
     this.load.image('candy-white', '/projects/samyang2026game/images/game/candy-white.png');
     this.load.image('candy-yellow', '/projects/samyang2026game/images/game/candy-yellow.png');
-
-    // 辣椒
     this.load.image('chilli', '/projects/samyang2026game/images/game/chilli.png');
-
-
-    // 炸弹
     this.load.image('bomb-1', '/projects/samyang2026game/images/game/bomb-1.png');
     this.load.image('bomb-2', '/projects/samyang2026game/images/game/bomb-2.png');
-
+    // 加载音乐
+    this.load.audio('audio-candy', '/projects/samyang2026game/audio/audio-candy.mp3');
+    this.load.audio('audio-chilli', '/projects/samyang2026game/audio/audio-chilli.mp3');
+    this.load.audio('audio-bomb', '/projects/samyang2026game/audio/audio-bomb.mp3');
 }
 
 // 注意：width和displayWidth是不同的
@@ -157,7 +177,9 @@ function create(this: Phaser.Scene) {
     });
     // 移动
     this.input.on('pointermove', (pointer) => {
-        // 限制移动
+        // 未在游戏状态，限制移动
+        if (!sharedState.isRunningGame.value) return;
+        // 被炸弹炸限制移动
         if (this.isStunned) return;
 
         if (pointer.isDown && this.lastPointerX !== null) {
@@ -193,22 +215,24 @@ function create(this: Phaser.Scene) {
     // 掉落物
     this.items = [];
     this.itemTypes = [
-    { key: 'candy-pink', type: 'candy' },
-    { key: 'candy-purple', type: 'candy' },
-    { key: 'candy-white', type: 'candy' },
-    { key: 'candy-yellow', type: 'candy' },
-    { key: 'chilli', type: 'chilli' },
-    { key: 'bomb-1', type: 'bomb' },
-    { key: 'bomb-2', type: 'bomb' },
+        { key: 'candy-pink', type: 'candy' },
+        { key: 'candy-purple', type: 'candy' },
+        { key: 'candy-white', type: 'candy' },
+        { key: 'candy-yellow', type: 'candy' },
+        { key: 'chilli', type: 'chilli' },
+        { key: 'bomb-1', type: 'bomb' },
+        { key: 'bomb-2', type: 'bomb' },
     ];
+
+    // 初始化音乐
+    this.candySound = this.sound.add('audio-candy');
+    this.chilliSound = this.sound.add('audio-chilli');
+    this.bombSound = this.sound.add('audio-bomb');
     
     // 状态控制
     this.isStunned = false;
 }
 function update(this: Phaser.Scene) {
-    // if (!this.sys.settings.data.isRunningGame.value) return
-    // if (!this.items) return
-
     if (sharedState.isRunningGame.value && !this.gameStarted) {
         this.gameStarted = true;
 
@@ -234,6 +258,7 @@ function update(this: Phaser.Scene) {
 
                     this.spawnTimer.remove();
                     this.timer.remove();
+                    sharedState.isPopGameOver.value = true; // 开启游戏结束弹窗
 
                     console.log('游戏结束');
                 }
@@ -253,19 +278,24 @@ function update(this: Phaser.Scene) {
         const distance = Math.sqrt(dx * dx + dy * dy)
 
         if (distance < 50) {
-
             if (item.type === 'candy') {
+                // 如果是在眩晕状态，不进行计分
+                if (this.isStunned) return;
                 // 糖果加分
                 sharedState.score.value += 1;
                 // 触发加分动画
                 addScoreEffect(1);
+                // 播放声音
+                this.sound.play('audio-candy', { volume: 0.5 });
             }
             if (item.type === 'chilli') {
+                // 如果是在眩晕状态，不进行计分
+                if (this.isStunned) return;
                 // 辣椒加分
                 sharedState.score.value += 3;
                 addScoreEffect(3);
+                this.sound.play('audio-chilli', { volume: 0.5 });
             }
-
             if (item.type === 'bomb') {
                 // 如果连续碰撞，只延长时间，不重新播放动画
                 // if (this.isStunned) {
@@ -279,6 +309,7 @@ function update(this: Phaser.Scene) {
                 // }
 
                 this.isStunned = true
+                this.sound.play('audio-bomb', { volume: 0.5 });
                 // ❗先清掉所有旧动画
                 this.tweens.killTweensOf(this.player)
                 // 重置状态（非常关键）
@@ -315,12 +346,10 @@ function update(this: Phaser.Scene) {
                     this.player.alpha = 1
                 })
             }
-
             // 移除
             item.destroy()
             this.items.splice(index, 1)
         }
-
         // 掉出屏幕
         if (item.y > h) {
             item.destroy()
@@ -391,6 +420,11 @@ function spawnItem (this: Phaser.Scene) {
             <div class="ruler">
                 <div class="ruler-btn" @click="startGame"></div>
             </div>
+        </div>
+
+        <!-- 游戏结束提醒 -->
+        <div v-show="isPopGameOver" class="game-over-container">
+            <div class="restart-btn" @click="restartGame"></div>
         </div>
 
     </div>
@@ -543,6 +577,27 @@ function spawnItem (this: Phaser.Scene) {
                 // background-color: red;
             }
 
+        }
+    } 
+
+    // 倒计时弹窗
+    .game-over-container {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background-color: rgba(0, 0, 0, .4);
+        .restart-btn {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            bottom: 2rem;
+            width: 2.1333rem;
+            height: .5133rem;
+            background: url("https://www.mbcstyle.cn/projects/static/samyang2026game/result/fail-restart.png") top center no-repeat;
+            background-size: 100% 100%;
+            
         }
     } 
 }
