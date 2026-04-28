@@ -3,7 +3,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import Index from '../views/Index/index.vue'
 import Taste from '../views/Taste/index.vue'
 import Check from '../views/Check/index.vue'
-import Backup from '../views/Backup/index.vue'
+import Result from '../views/Result/index.vue'
 import Game from '../views/Game/index.vue'
 
 const router = createRouter({
@@ -30,9 +30,9 @@ const router = createRouter({
       component: Check
     },
     {
-      path: '/backup',
-      name: 'backup',
-      component: Backup
+      path: '/result',
+      name: 'result',
+      component: Result
     },
     {
       path: '/game',

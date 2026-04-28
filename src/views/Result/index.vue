@@ -41,12 +41,13 @@ function debugToResultPage() {
 <template>
   <div class="page-body">
     <img src="https://www.mbcstyle.cn/projects/static/samyang2026game/taste/bg.jpg" alt="" class="bg">
-    <div class="logo-brand" @click="debugToResultPage"></div>
+    <div class="logo-brand"></div>
     <div class="logo-noodle" @click="debugToGamePage"></div>
-    <div class="slogan"></div>
-    <div class="noodles"></div>
+    <div class="qrcode-div"></div>
+    <div class="qrcode-container">
+      <img src="https://www.mbcstyle.cn/projects/static/samyang2026game/result/qrcode.jpg" alt="">
+    </div>
 
-    <div class="btn-taste" @click="navigateToGamePage"></div>
     
   </div>
 
@@ -82,37 +83,29 @@ function debugToResultPage() {
     background: url("https://www.mbcstyle.cn/projects/static/samyang2026game/index/logo-noodle.png") top center no-repeat;
     background-size: 100% 100%;
   }
-  .slogan {
+  .qrcode-div {
     position: absolute;
-    top: 1.2rem;
+    top: 20%;
     margin-left: 50%;
     transform: translateX(-50%);
-    width: 3.5533rem;
-    height: 2.56rem;
-    background: url("https://www.mbcstyle.cn/projects/static/samyang2026game/taste/slogan.png") top center no-repeat;
+    width: 2.0466rem;
+    height: 2.08rem;
+    background: url("https://www.mbcstyle.cn/projects/static/samyang2026game/result/qrcode.jpg") top center no-repeat;
     background-size: 100% 100%;
   }
-  .noodles {
+  .qrcode-container {
     position: absolute;
-    top: 4rem;
+    bottom: 20%;
     margin-left: 50%;
     transform: translateX(-50%);
-    width: 4.8866rem;
-    height: 3.9333rem;
-    background: url("https://www.mbcstyle.cn/projects/static/samyang2026game/taste/noodles.png") top center no-repeat;
-    background-size: 100% 100%;
+    width: 2.0466rem;
+    height: 2.08rem;
+    img {
+      width: 100%;
+      height: 100%;
+    }
   }
-
-  .btn-taste {
-    position: absolute;
-    bottom: .8rem;
-    margin-left: 50%;
-    transform: translateX(-50%);
-    width: 2.58rem;
-    height: .66rem;
-    background: url("https://www.mbcstyle.cn/projects/static/samyang2026game/taste/btn-taste.png") top center no-repeat;
-    background-size: 100% 100%;
-  }
+ 
  
 }
 </style>
