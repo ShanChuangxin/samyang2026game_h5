@@ -156,7 +156,7 @@ function preload(this: Phaser.Scene) {
     this.load.image('bomb-2', '/projects/samyang2026game/images/game/bomb-2.png');
     // 加载音乐
     this.load.audio('audio-candy', '/projects/samyang2026game/audio/audio-candy.mp3');
-    this.load.audio('audio-chilli', '/projects/samyang2026game/audio/audio-chilli.mp3');
+    this.load.audio('audio-chilli', '/projects/samyang2026game/audio/audio-candy.mp3'); // 暂时和糖果是相同声音
     this.load.audio('audio-bomb', '/projects/samyang2026game/audio/audio-bomb.mp3');
 }
 
@@ -373,8 +373,21 @@ function spawnItem (this: Phaser.Scene) {
     item.type = config.type
     item.speed = Phaser.Math.Between(3, 6)
 
+    // 根据类型设置大小
+    // if (item.type === 'candy') {
+    //     item.setScale(0.3)
+    // }
+    // if (item.type === 'chilli') {
+    //     item.setScale(0.35) // 稍大一点更显眼
+    // }
+    // if (item.type === 'bomb') {
+    //     item.setScale(0.4) // 危险物更大
+    // }
+
     // 缩放
-    item.setScale(0.3)
+    item.setScale(0.5)
+
+
 
     this.items.push(item)
 }

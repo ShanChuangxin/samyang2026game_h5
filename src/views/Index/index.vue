@@ -5,10 +5,7 @@ import { Toast } from 'vant'
 import { getUserInfoAPI, stampCheckAPI, stampStatusAPI, withdrawAPI, clearDrawInfoAPI } from '@/apis/user'
 import type { UserInfo } from '@/types/user'
 
-
-
-
-const userInfo = ref<UserInfo>()
+const userInfo = ref<UserInfo>();
 
 // 通过url参数获取用户信息
 const route = useRoute();
@@ -35,6 +32,8 @@ function navigateToTastePage() {
     <div class="logo-brand"></div>
     <div class="logo-noodle"></div>
     <div class="introduce"></div>
+    <div class="name"></div>
+    <div class="tap-tips"></div>
 
     <div class="gif-container">
       <img src="https://www.mbcstyle.cn/projects/static/samyang2026game/index/giphy.gif" alt="" class="bg" @click="navigateToTastePage">
@@ -85,6 +84,25 @@ function navigateToTastePage() {
     height: 1.86rem;
     background: url("https://www.mbcstyle.cn/projects/static/samyang2026game/index/introduce.png") top center no-repeat;
     background-size: 100% 100%;
+  }
+  .name {
+    position: absolute;
+    top: 6.6rem;
+    left: .5rem;
+    width: .5266rem;
+    height: .14rem;
+    background: url("https://www.mbcstyle.cn/projects/static/samyang2026game/index/peppo.png") top center no-repeat;
+    background-size: 100% 100%;
+  }
+  .tap-tips {
+    position: absolute;
+    top: 6.6rem;
+    right: .5rem;
+    width: 1.0266rem;
+    height: .4066rem;
+    background: url("https://www.mbcstyle.cn/projects/static/samyang2026game/index/tap-tips.png") top center no-repeat;
+    background-size: 100% 100%;
+
   }
 
   .gif-container {
