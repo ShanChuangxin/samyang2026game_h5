@@ -12,12 +12,17 @@ import * as Phaser from 'phaser'
 const route = useRoute();
 console.log(route.query.city);
 
+/////////////////////////////////////////
+//               游戏页面               //
+/////////////////////////////////////////
 // 游戏结束相关
 // 控制游戏结束
 const isPopGameOver = ref(false);
 // 重新开始游戏
 function restartGame () {
     console.log("重新开始游戏");
+    // 0. 隐藏结果页面 
+    isShowResultPage.value = false; // 隐藏结果页面
     // 1. 关闭游戏结束提醒
     isPopGameOver.value = false;
     // 2. 重置游戏
@@ -41,7 +46,6 @@ function restartGame () {
         scene.items = []
     }
 }
-
 // 显示游戏规则弹窗
 const isPopRuler = ref(true);
 function startGame() {
@@ -50,7 +54,6 @@ function startGame() {
     // 开启倒计时
     countDown();
 }
-
 // 倒计时弹窗
 const isPopCountdown = ref(false);
 const countdown_num = ref(3);
@@ -103,23 +106,20 @@ function addScoreEffect(value) {
     floatingScores.value = floatingScores.value.filter(i => i.id !== item.id)
   }, 1000)
 }
-
 // 游戏相关
 const gameRef = ref(null);
 let game: Phaser.Game | null = null;
-
-// vue和Phaser共用变量（通过挂载时，配置config中传入）
 const gameTimeLimit = 60;
 const score = ref(0);   // 分值（辣度值）
 const isRunningGame = ref(false);  // 是否启动游戏
 const gameTimeCounter = ref(gameTimeLimit);  // 游戏倒计时
+// Vue与Phaser共用变量
 const sharedState = {
     score,
     isRunningGame,
     gameTimeCounter,
     isPopGameOver
 }
-
 onMounted(() => {
     const config = {
         type: Phaser.AUTO,
@@ -159,7 +159,6 @@ function preload(this: Phaser.Scene) {
     this.load.audio('audio-chilli', '/projects/samyang2026game/audio/audio-candy.mp3'); // 暂时和糖果是相同声音
     this.load.audio('audio-bomb', '/projects/samyang2026game/audio/audio-bomb.mp3');
 }
-
 // 注意：width和displayWidth是不同的
 function create(this: Phaser.Scene) {
     // 屏幕按比例的宽和高
@@ -360,7 +359,6 @@ function update(this: Phaser.Scene) {
 // 生成掉落物函数
 function spawnItem (this: Phaser.Scene) {
     const w = this.scale.width
-
     const random = Phaser.Math.Between(0, this.itemTypes.length - 1)
     const config = this.itemTypes[random]
 
@@ -369,10 +367,8 @@ function spawnItem (this: Phaser.Scene) {
         0,
         config.key
     )
-
     item.type = config.type
     item.speed = Phaser.Math.Between(3, 6)
-
     // 根据类型设置大小
     // if (item.type === 'candy') {
     //     item.setScale(0.3)
@@ -383,62 +379,114 @@ function spawnItem (this: Phaser.Scene) {
     // if (item.type === 'bomb') {
     //     item.setScale(0.4) // 危险物更大
     // }
-
     // 缩放
     item.setScale(0.5)
-
-
-
     this.items.push(item)
 }
+
+/////////////////////////////////////////
+//              游戏结果页面             //
+/////////////////////////////////////////
+const isShowResultPage = ref(true); // 是否显示结果页面
+const isSuccess = ref(true);    // 是否挑战成功
+const isPopDrawResult = ref(false);  // 是否中奖结果窗体
+const prizeGrade = ref(3);  // 1为免单，2为减5，3为40-8，4为100-10
 </script>
 
 <template>
     <div class="page-body">
-        <!-- 游戏窗口 -->
-        <div id="game-container" ref="gameRef"></div>
+        <!-- 游戏页面 -->
+        <div class="game-page">
+            <!-- 游戏窗口 -->
+            <div id="game-container" ref="gameRef"></div>
 
-        <!-- 游戏倒计时 -->
-        <div class="game-timer-counter">{{ gameTimeCounter }}</div>
+            <!-- 游戏倒计时 -->
+            <div class="game-timer-counter">{{ gameTimeCounter }}</div>
 
-        <!-- 甜辣值进度条 -->
-        <div class="bar-wrapper">
-            <!-- 分值进度条 -->
-            <div class="bar-mask" :style="{ height: maskHeight }">
-                <div class="bar-fill"></div>
+            <!-- 甜辣值进度条 -->
+            <div class="bar-wrapper">
+                <!-- 分值进度条 -->
+                <div class="bar-mask" :style="{ height: maskHeight }">
+                    <div class="bar-fill"></div>
+                </div>
+                <div class="bar-head" :style="{ bottom: headBottom }"></div>
+                <!-- 所加分值 -->
+                <div class="add-score" :style="{ bottom: headBottom }">
+                    <div 
+                        v-for="item in floatingScores"
+                        :key="item.id"
+                        class="score-item" 
+                    >
+                        +{{ item.value }}
+                    </div>
+                </div>
+                <!-- 当前分值 -->
+                <div class="score-record" :style="{ bottom: scoreBottom }">{{ score }}</div>
             </div>
-            <div class="bar-head" :style="{ bottom: headBottom }"></div>
-            <!-- 所加分值 -->
-            <div class="add-score" :style="{ bottom: headBottom }">
-                <div 
-                    v-for="item in floatingScores"
-                    :key="item.id"
-                    class="score-item" 
-                >
-                    +{{ item.value }}
+
+            <!-- 倒计时弹窗 -->
+            <div v-show="isPopCountdown" class="countdown-container">
+                <img :src="`https://www.mbcstyle.cn/projects/static/samyang2026game/game/count-down-${countdown_num}.png`" alt="">
+            </div>
+
+            <!-- 游戏规则弹窗 -->
+            <div v-show="isPopRuler" class="ruler-container">
+                <div class="ruler">
+                    <div class="ruler-btn" @click="startGame"></div>
                 </div>
             </div>
-            <!-- 当前分值 -->
-            <div class="score-record" :style="{ bottom: scoreBottom }">{{ score }}</div>
-        </div>
 
-
-        <!-- 倒计时弹窗 -->
-        <div v-show="isPopCountdown" class="countdown-container">
-            <img :src="`https://www.mbcstyle.cn/projects/static/samyang2026game/game/count-down-${countdown_num}.png`" alt="">
-        </div>
-
-        <!-- 游戏规则弹窗 -->
-        <div v-show="isPopRuler" class="ruler-container">
-            <div class="ruler">
-                <div class="ruler-btn" @click="startGame"></div>
+            <!-- 游戏结束提醒 -->
+            <div v-show="isPopGameOver" class="game-over-container">
+                <div class="restart-btn" @click="restartGame"></div>
             </div>
         </div>
 
-        <!-- 游戏结束提醒 -->
-        <div v-show="isPopGameOver" class="game-over-container">
-            <div class="restart-btn" @click="restartGame"></div>
+        <!-- 游戏结果页面 -->
+        <div v-show="isShowResultPage" class="result-page">
+            <img src="https://www.mbcstyle.cn/projects/static/samyang2026game/result/bg.jpg" alt="" class="bg" @click="navigateToTastePage">
+            <div v-if="isSuccess" class="success-page">
+                <div class="success-tips"></div>
+                <div class="success-noodles"></div>
+                <div class="success-decoration"></div>
+                <div class="btn-luckydraw"></div>
+                <!-- 中奖结果弹窗 -->
+                <div v-show="isPopDrawResult" class="draw-result-container">
+                    <div class="btn-back"></div>
+                    <div class="btn-share"></div>
+                    <!-- 弹窗容器 -->
+                    <div class="pop-container">
+                        <div class="pop-bg"></div>
+                        <div class="ticket-title">
+                            <div v-show="prizeGrade=='1'" class="ticket-title-free"></div>
+                            <div v-show="prizeGrade=='2'" class="ticket-title-5"></div>
+                            <div v-show="prizeGrade=='3'" class="ticket-title-40-8"></div>
+                            <div v-show="prizeGrade=='4'" class="ticket-title-100-10"></div>
+                        </div>
+                        <div class="ticket-container">
+                            <img v-show="prizeGrade=='1'" src="https://www.mbcstyle.cn/projects/static/samyang2026game/result/ticket-pic-free.png" alt="">
+                            <img v-show="prizeGrade=='2'" src="https://www.mbcstyle.cn/projects/static/samyang2026game/result/ticket-pic-5.png" alt="">
+                            <img v-show="prizeGrade=='3'" src="https://www.mbcstyle.cn/projects/static/samyang2026game/result/ticket-pic-40-8.png" alt="">
+                            <img v-show="prizeGrade=='4'" src="https://www.mbcstyle.cn/projects/static/samyang2026game/result/ticket-pic-100-10.png" alt="">
+                        </div>
+                        <div class="peppo-pic"></div>
+                        <div class="candy"></div>
+                        <div class="btn-close"></div>
+                    </div>
+                    <!-- 扫码容器 -->
+                    <div class="qrcode-container">
+
+                    </div>
+                </div>
+            </div>
+            <div v-else class="fail-page">
+                <div class="fail-tips"></div>
+                <div class="fail-noodles"></div>
+                <div class="fail-restart" @click="restartGame"></div>
+            </div>
+
         </div>
+        
 
     </div>
 </template>
@@ -451,167 +499,387 @@ function spawnItem (this: Phaser.Scene) {
     height: 100vh;
     overflow: hidden;
 
-    // 游戏倒计时
-    .game-timer-counter {
-        position: absolute;
-        top: 0;
-        margin-left: 50%;
-        transform: translateX(-50%);
-        color: white;
-        font-size: .5rem;
-        font-weight: 900;
-    }
-
-    // 进度条
-    .bar-wrapper {
-        position: absolute;
-        // background-color: skyblue;
-        top: 2rem;
-        left: .1rem;
-        width: 1rem;
-        height: 3.4333rem;
-        .bar-mask {
+    // 游戏页面
+    .game-page {
+        // 游戏倒计时
+        .game-timer-counter {
             position: absolute;
-            bottom: 0;
-            width: 100%;
-            // height: 3.4333rem;
-            height: 0%;
-            // background-color: pink;
-            overflow: hidden;   // 裁减
-            .bar-fill {
+            top: 0;
+            margin-left: 50%;
+            transform: translateX(-50%);
+            color: white;
+            font-size: .5rem;
+            font-weight: 900;
+        }
+
+        // 进度条
+        .bar-wrapper {
+            position: absolute;
+            // background-color: skyblue;
+            top: 2rem;
+            left: .1rem;
+            width: 1rem;
+            height: 3.4333rem;
+            .bar-mask {
+                position: absolute;
+                bottom: 0;
+                width: 100%;
+                // height: 3.4333rem;
+                height: 0%;
+                // background-color: pink;
+                overflow: hidden;   // 裁减
+                .bar-fill {
+                    position: absolute;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    bottom: 0;
+                    width: .6466rem;
+                    height: 3.4333rem;
+                    background: url("https://www.mbcstyle.cn/projects/static/samyang2026game/game/count-down-bar.png") no-repeat bottom;
+                    background-size: 100% 100%;
+                    transition: height 0.2s ease;
+                }
+            }
+            .bar-head {
                 position: absolute;
                 left: 50%;
                 transform: translateX(-50%);
-                bottom: 0;
-                width: .6466rem;
-                height: 3.4333rem;
-                background: url("https://www.mbcstyle.cn/projects/static/samyang2026game/game/count-down-bar.png") no-repeat bottom;
+                bottom: 0rem;
+                width: .5733rem;
+                height: .5066rem;
+                background: url("https://www.mbcstyle.cn/projects/static/samyang2026game/game/count-down-heart.png") top center no-repeat;
                 background-size: 100% 100%;
-                transition: height 0.2s ease;
+                transition: bottom 0.2s ease;
+                // z-index: 2;
+                // background: red;
             }
-        }
-        .bar-head {
-            position: absolute;
-            left: 50%;
-            transform: translateX(-50%);
-            bottom: 0rem;
-            width: .5733rem;
-            height: .5066rem;
-            background: url("https://www.mbcstyle.cn/projects/static/samyang2026game/game/count-down-heart.png") top center no-repeat;
-            background-size: 100% 100%;
-            transition: bottom 0.2s ease;
-            // z-index: 2;
-            // background: red;
-        }
-        // 分值记录
-        .score-record {
-            position: absolute;
-            left: 50%;
-            transform: translateX(-50%);
-            bottom: 0rem;
-            transition: bottom 0.2s ease;
-
-            color: white;
-            font-size: .45rem;
-            font-weight: 900;
-        }
-        // 加分记录
-        .add-score {
-            position: absolute;
-            left: 50%;
-            transform: translateX(-50%);
-            bottom: 0rem;
-            margin-left: 0rem;
-
-            .score-item {
+            // 分值记录
+            .score-record {
                 position: absolute;
-                left: 0rem;
-                bottom: 0;
-                color: #ff4d4f;
-                font-size: .35rem;
-                font-weight: 800;
-                animation: floatUp 1s ease-out forwards;
+                left: 50%;
+                transform: translateX(-50%);
+                bottom: 0rem;
+                transition: bottom 0.2s ease;
+
+                color: white;
+                font-size: .45rem;
+                font-weight: 900;
             }
-            /* 动画 */
-            @keyframes floatUp {
-                0% {
-                    transform: translate(0, 0);
-                    opacity: 1;
+            // 加分记录
+            .add-score {
+                position: absolute;
+                left: 50%;
+                transform: translateX(-50%);
+                bottom: 0rem;
+                margin-left: 0rem;
+
+                .score-item {
+                    position: absolute;
+                    left: 0rem;
+                    bottom: 0;
+                    color: #ff4d4f;
+                    font-size: .35rem;
+                    font-weight: 800;
+                    animation: floatUp 1s ease-out forwards;
                 }
-                100% {
-                    transform: translate(0.5rem, -1rem);
-                    opacity: 0;
+                /* 动画 */
+                @keyframes floatUp {
+                    0% {
+                        transform: translate(0, 0);
+                        opacity: 1;
+                    }
+                    100% {
+                        transform: translate(0.5rem, -1rem);
+                        opacity: 0;
+                    }
                 }
             }
         }
+
+        // 倒计时弹窗
+        .countdown-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background-color: rgba(0, 0, 0, .4);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            img {
+                width: 2.14rem;
+                height: 2.1333rem;
+            } 
+        } 
+
+        // 游戏规则弹窗
+        .ruler-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background-color: rgba(0, 0, 0, .4);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            .ruler {
+                position: relative;
+                width: 3.82rem;
+                height: 4.0933rem;
+                background: url("https://www.mbcstyle.cn/projects/static/samyang2026game/game/ruler.png") top center no-repeat;
+                background-size: 100% 100%;
+                .ruler-btn {
+                    position: absolute;
+                    bottom: 0;
+                    margin-left: 50%;
+                    transform: translateX(-50%);
+                    width: 2.2rem;
+                    height: .51rem;
+                    // background-color: red;
+                }
+
+            }
+        } 
+
+        // 倒计时弹窗
+        .game-over-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background-color: rgba(0, 0, 0, .4);
+            .restart-btn {
+                position: absolute;
+                left: 50%;
+                transform: translateX(-50%);
+                bottom: 2rem;
+                width: 2.1333rem;
+                height: .5133rem;
+                background: url("https://www.mbcstyle.cn/projects/static/samyang2026game/result/fail-restart.png") top center no-repeat;
+                background-size: 100% 100%;
+                
+            }
+        } 
+    }
+    // 游戏结果页面
+    .result-page {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        .bg {
+            width: 100%;
+            height: auto;
+        }
+        .success-page {
+            .success-tips {
+                position: absolute;
+                left: 50%;
+                transform: translateX(-50%);
+                top: 1rem;
+                width: 3.9866rem;
+                height: 1.8333rem;
+                background: url("https://www.mbcstyle.cn/projects/static/samyang2026game/result/success-tips.png") top center no-repeat;
+                background-size: 100% 100%;
+            }
+            .success-noodles {
+                position: absolute;
+                left: 50%;
+                transform: translateX(-50%);
+                top: 3rem;
+                width: 4.8266rem;
+                height: 4.54rem;
+                background: url("https://www.mbcstyle.cn/projects/static/samyang2026game/result/success-noodles.png") top center no-repeat;
+                background-size: 100% 100%;
+            }
+            .success-decoration {
+                position: absolute;
+                left: 50%;
+                transform: translateX(-50%);
+                top: 0rem;
+                width: 5rem;
+                height: 5.0933rem;
+                background: url("https://www.mbcstyle.cn/projects/static/samyang2026game/result/success-decoration.png") top center no-repeat;
+                background-size: 100% 100%;
+            }
+            .btn-luckydraw {
+                position: absolute;
+                left: 50%;
+                transform: translateX(-50%);
+                bottom: .6rem;
+                width: 2.1333rem;
+                height: .5133rem;
+                background: url("https://www.mbcstyle.cn/projects/static/samyang2026game/result/success-btn-luckydraw.png") top center no-repeat;
+                background-size: 100% 100%;
+            }
+            // 中奖结果弹窗
+            .draw-result-container {
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100vw;
+                height: 100vh;
+                background-color: rgba(0, 0, 0, .7);
+                .btn-back {
+                    position: absolute;
+                    left: .3rem;
+                    top: .3rem;
+                    width: .4733rem;
+                    height: .3933rem;
+                    background: url("https://www.mbcstyle.cn/projects/static/samyang2026game/result/btn-return.png") top center no-repeat;
+                    background-size: 100% 100%;
+                }
+                .btn-share {
+                    position: absolute;
+                    right: .3rem;
+                    top: .3rem;
+                    width: .4rem;
+                    height: .3933rem;
+                    background: url("https://www.mbcstyle.cn/projects/static/samyang2026game/result/btn-share.png") top center no-repeat;
+                    background-size: 100% 100%;
+                }
+                .pop-container {
+                    position: absolute;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    top: .7rem;
+                    width: 4.2rem;
+                    height: 6rem;
+                    // background-color: pink;
+                    .pop-bg {
+                        position: absolute;
+                        left: 50%;
+                        transform: translateX(-50%);
+                        top: 1rem;
+                        width: 3.8133rem;
+                        height: 4.2866rem;
+                        background: url("https://www.mbcstyle.cn/projects/static/samyang2026game/result/pop-bg.png") top center no-repeat;
+                        background-size: 100% 100%;
+                    }
+                    .ticket-title {
+                        position: absolute;
+                        left: 50%;
+                        transform: translateX(-50%);
+                        top: .5rem;
+                        .ticket-title-free {
+                            width: 3.6666rem;
+                            height: 1.0733rem;
+                            background: url("https://www.mbcstyle.cn/projects/static/samyang2026game/result/ticket-title-free.png") top center no-repeat;
+                            background-size: 100% 100%;
+                        }
+                        .ticket-title-5 {
+                            width: 3.6666rem;
+                            height: 1.0666rem;
+                            background: url("https://www.mbcstyle.cn/projects/static/samyang2026game/result/ticket-title-5.png") top center no-repeat;
+                            background-size: 100% 100%;
+                        }
+                        .ticket-title-40-8 {
+                            width: 3.8533rem;
+                            height: .6466rem;
+                            background: url("https://www.mbcstyle.cn/projects/static/samyang2026game/result/ticket-title-40-8.png") top center no-repeat;
+                            background-size: 100% 100%;
+                        }
+                        .ticket-title-100-10 {
+                            width: 3.8066rem;
+                            height: .6733rem;
+                            background: url("https://www.mbcstyle.cn/projects/static/samyang2026game/result/ticket-title-100-10.png") top center no-repeat;
+                            background-size: 100% 100%;
+                        }
+                    }
+                    .ticket-container {
+                        position: absolute;
+                        left: .7rem;
+                        top: 1.6rem;
+                        width: 1.8rem;
+                        height: 2.8rem;
+                        img {
+                            width: 100%;
+                            height: 100%;
+                        }
+                    }
+                    .peppo-pic {
+                        position: absolute;
+                        right: .5rem;
+                        top: 2.3rem;
+                        width: 1.58rem;
+                        height: 2.2733rem;
+                        background: url("https://www.mbcstyle.cn/projects/static/samyang2026game/result/peppo.png") top center no-repeat;
+                        background-size: 100% 100%;
+
+                    }
+                    .candy {
+                        position: absolute;
+                        left: 50%;
+                        transform: translateX(-50%);
+                        top: 0;
+                        width: 4.2rem;
+                        height: 1.54rem;
+                        background: url("https://www.mbcstyle.cn/projects/static/samyang2026game/result/candy.png") top center no-repeat;
+                        background-size: 100% 100%;
+                    }
+                    .btn-close {
+                        position: absolute;
+                        left: 50%;
+                        transform: translateX(-50%);
+                        bottom: 0rem;
+                        width: .4733rem;
+                        height: .4733rem;
+                        background: url("https://www.mbcstyle.cn/projects/static/samyang2026game/result/btn-close.png") top center no-repeat;
+                        background-size: 100% 100%;
+                    }
+                }
+                .qrcode-container {
+                    position: absolute;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    bottom: 1.1rem;
+                    width: 3.76rem;
+                    height: 1.6533rem;
+                    background: url("https://www.mbcstyle.cn/projects/static/samyang2026game/result/tips.png") top center no-repeat;
+                    background-size: 100% 100%;
+                }
+
+            }
+        }
+        .fail-page {
+            .fail-tips {
+                position: absolute;
+                left: 50%;
+                transform: translateX(-50%);
+                top: 1rem;
+                width: 3.92rem;
+                height: 1.7rem;
+                background: url("https://www.mbcstyle.cn/projects/static/samyang2026game/result/fail-tips.png") top center no-repeat;
+                background-size: 100% 100%;
+            }
+            .fail-noodles {
+                position: absolute;
+                left: 50%;
+                transform: translateX(-50%);
+                top: 3rem;
+                width: 4rem;
+                height: 5.4933rem;
+                background: url("https://www.mbcstyle.cn/projects/static/samyang2026game/result/fail-noodles.png") top center no-repeat;
+                background-size: 100% 100%;
+            }
+            .fail-restart {
+                position: absolute;
+                left: 50%;
+                transform: translateX(-50%);
+                bottom: .6rem;
+                width: 2.1333rem;
+                height: .5133rem;
+                background: url("https://www.mbcstyle.cn/projects/static/samyang2026game/result/fail-restart.png") top center no-repeat;
+                background-size: 100% 100%;
+            }
+        }
+        
     }
 
-    // 倒计时弹窗
-    .countdown-container {
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100vw;
-        height: 100vh;
-        background-color: rgba(0, 0, 0, .4);
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        img {
-            width: 2.14rem;
-            height: 2.1333rem;
-        } 
-    } 
-
-    // 游戏规则弹窗
-    .ruler-container {
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100vw;
-        height: 100vh;
-        background-color: rgba(0, 0, 0, .4);
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        .ruler {
-            position: relative;
-            width: 3.82rem;
-            height: 4.0933rem;
-            background: url("https://www.mbcstyle.cn/projects/static/samyang2026game/game/ruler.png") top center no-repeat;
-            background-size: 100% 100%;
-            .ruler-btn {
-                position: absolute;
-                bottom: 0;
-                margin-left: 50%;
-                transform: translateX(-50%);
-                width: 2.2rem;
-                height: .51rem;
-                // background-color: red;
-            }
-
-        }
-    } 
-
-    // 倒计时弹窗
-    .game-over-container {
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100vw;
-        height: 100vh;
-        background-color: rgba(0, 0, 0, .4);
-        .restart-btn {
-            position: absolute;
-            left: 50%;
-            transform: translateX(-50%);
-            bottom: 2rem;
-            width: 2.1333rem;
-            height: .5133rem;
-            background: url("https://www.mbcstyle.cn/projects/static/samyang2026game/result/fail-restart.png") top center no-repeat;
-            background-size: 100% 100%;
-            
-        }
-    } 
+    
 }
 </style>
