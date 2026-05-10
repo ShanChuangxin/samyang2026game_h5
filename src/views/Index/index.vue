@@ -2,27 +2,53 @@
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Toast } from 'vant'
-import { getUserInfoAPI, stampCheckAPI, stampStatusAPI, withdrawAPI, clearDrawInfoAPI } from '@/apis/user'
-import type { UserInfo } from '@/types/user'
-
-const userInfo = ref<UserInfo>();
 
 // 通过url参数获取用户信息
 const route = useRoute();
-const cityCode = route.query.utmChannel_var as string;
+function getRandom(length = 10, type = 0) {
+    const digits = '0123456789';
+    const letters = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    let seed = '';
+    if (type === 0) {
+        // 纯数字
+        seed = digits;
+    } else if (type === 1) {
+        // 纯字母
+        seed = letters;
+    } else if (type === 2) {
+        // 数字 + 字母
+        seed = digits + letters;
+    } else {
+        seed = digits;
+    }
+    let result = '';
+    for (let i = 0; i < length; i++) {
+        const index = Math.floor(Math.random() * seed.length);
+        result += seed[index];
+    }
+    return result;
+}
+let user_id = ''; // 用户id
+let create_time = 0;  // 创建时间
 const loadUserInfo = async () => {
-    console.log("获取的参数信息为：", route.query);
-  
+  // console.log("获取的参数信息为：", route.query);
+  user_id = Date.now().toString(36) + getRandom(4, 2);
+  create_time = Math.floor(Date.now() / 1000);
+  console.log("user_id: ", user_id);
    
 }
 onMounted(() => loadUserInfo());
 
 const router = useRouter();
 function navigateToTastePage() {
-  router.replace('/taste');
+  router.replace({
+    path: '/taste',
+    query: {
+      user_id,
+      create_time
+    }
+  });
 }
-
-
 
 </script>
 

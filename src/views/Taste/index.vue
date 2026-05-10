@@ -1,28 +1,32 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Toast } from 'vant'
-import { getUserInfoAPI, stampCheckAPI, stampStatusAPI, withdrawAPI, clearDrawInfoAPI } from '@/apis/user'
-import type { UserInfo } from '@/types/user'
 
-
-
-
-const userInfo = ref<UserInfo>()
-
+// 隐私条款
 const isShowAgreement = ref(true);
 
 // 通过url参数获取用户信息
 const route = useRoute();
-const cityCode = route.query.utmChannel_var as string;
+const user_id = route.query.user_id as string;
+const create_time = route.query.create_time as string;
 const loadUserInfo = async () => {
+  if (!user_id || !create_time){
+    router.replace('/index');
+  }
     console.log("获取的参数信息为：", route.query);
 }
 onMounted(() => loadUserInfo());
 
 const router = useRouter();
 function navigateToGamePage() {
-  router.replace('/game');
+  // router.replace('/game');
+  router.replace({
+    path: '/game',
+    query: {
+      user_id,
+      create_time
+    }
+  });
 }
 function closeAgreementPop() {
   isShowAgreement.value = false;
@@ -30,9 +34,6 @@ function closeAgreementPop() {
 function debugToResultPage() {
   router.replace('/result');
 }
-
-
-
 
 </script>
 
@@ -142,9 +143,7 @@ function debugToResultPage() {
               height: .51rem;
               // background-color: red;
           }
-
       }
   } 
- 
 }
 </style>

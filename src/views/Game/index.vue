@@ -3,14 +3,23 @@
 // 不校验ts
 // @ts-nocheck
 import { ref, onMounted, onBeforeUnmount, computed } from 'vue'
-import { getTodayPrizeInfoAPI, checkPrizeAPI } from '@/apis/user'
+import { challengeInfoAPI, luckydrawAPI } from '@/apis/user'
 import { Toast } from 'vant'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import * as Phaser from 'phaser'
 
-// 参数获取
+// 通过url参数获取用户信息
 const route = useRoute();
-console.log(route.query.city);
+const user_id = route.query.user_id as string;
+const create_time = route.query.create_time as string;
+const router = useRouter();
+const loadUserInfo = async () => {
+  if (!user_id || !create_time){
+    console.log("参数不全，返回首页");
+    router.replace('/index');
+  }
+}
+// onMounted(() => loadUserInfo()); // 与游戏场景加载放在一起，防止跳转来回出现场景残留问题
 
 /////////////////////////////////////////
 //               游戏页面               //
@@ -48,7 +57,7 @@ function restartGame () {
 }
 // 显示游戏规则弹窗
 const isPopRuler = ref(true);
-function startGame() {
+async function startGame() {
     // 关闭弹窗
     isPopRuler.value = false;   
     // 开启倒计时
@@ -57,6 +66,7 @@ function startGame() {
 // 倒计时弹窗
 const isPopCountdown = ref(false);
 const countdown_num = ref(3);
+let game_start_time = 0;    // 游戏开始时间
 // 倒计时函数
 function countDown() {
     isPopCountdown.value = true;
@@ -67,29 +77,36 @@ function countDown() {
             clearInterval(timer);
             isPopCountdown.value = false;   // 隐藏倒计时
             countdown_num.value = 3;
+            // ===== 重置角色状态 =====
+            sharedState.isStunned.value = false;
             // 开启游戏
             sharedState.isRunningGame.value = true;
+            // 记录游戏开始时间
+            game_start_time = Math.floor(Date.now() / 1000);
             // 通知 Phaser 开始游戏
             console.log("游戏开启");
         }
     }, 1000);
 }
 // 分值计算
-const maxScore = 100;   // 满分
+const maxScore = 60;   // 满分
 const percent = computed(() => {
   return Math.min(score.value / maxScore * 100, 100);
 })
 // 遮罩高度
 const maskHeight = computed(() => {
-    return Math.min(percent.value + 23, 100) + '%';
+    // return Math.min(percent.value + 23, 100) + '%';
+    return (23 + percent.value * 0.77) + '%'
 })
 // 心的位置（和进度条一样）
 const headBottom = computed(() => {
-    return Math.min(percent.value + 18, 93) + '%';
+    // return Math.min(percent.value + 18, 93) + '%';
+    return (18 + percent.value * 0.75) + '%'
 });
 // 分数的位置（位于心的位置上方）
 const scoreBottom = computed(() => {
-    return Math.min(percent.value + 30, 105) + '%';
+    // return Math.min(percent.value + 30, 105) + '%';
+    return (30 + percent.value * 0.75) + '%'
 })
 // 加分动效
 const floatingScores = ref([])
@@ -109,18 +126,46 @@ function addScoreEffect(value) {
 // 游戏相关
 const gameRef = ref(null);
 let game: Phaser.Game | null = null;
-const gameTimeLimit = 60;
+const gameTimeLimit = 30;   // 游戏时长
 const score = ref(0);   // 分值（辣度值）
 const isRunningGame = ref(false);  // 是否启动游戏
 const gameTimeCounter = ref(gameTimeLimit);  // 游戏倒计时
+const isStunned = ref(false);   // 是否碰撞到炸弹
+// 提交游戏信息
+let game_end_time = 0;
+async function submitGameResult() {
+    game_end_time = Math.floor(Date.now() / 1000);
+    const game_info = {
+        user_id,
+        create_time,
+        game_start_time,
+        game_end_time,
+        game_time: game_end_time - game_start_time, 
+        score: sharedState.score.value
+    }
+    console.log("游戏挑战信息：", game_info);
+    try {
+        const res = await challengeInfoAPI(game_info);
+        console.log("服务器返回结果：", res);
+        if (res.data.errcode === 0) {
+            console.log("游戏信息同步服务器成功");
+        } else {
+            console.log("游戏信息同步失败:", res.data.errmsg);
+        }
+    } catch (err) {
+        console.log("请求失败:", err);
+    }
+}
 // Vue与Phaser共用变量
 const sharedState = {
     score,
     isRunningGame,
     gameTimeCounter,
-    isPopGameOver
+    isPopGameOver,
+    isStunned   // 是否被炸弹炸
 }
-onMounted(() => {
+onMounted(async () => {
+    await loadUserInfo();
     const config = {
         type: Phaser.AUTO,
         width: window.innerWidth,
@@ -161,6 +206,9 @@ function preload(this: Phaser.Scene) {
 }
 // 注意：width和displayWidth是不同的
 function create(this: Phaser.Scene) {
+    // 全局音量
+    this.sound.volume = 0.1;
+
     // 屏幕按比例的宽和高
     const w = this.scale.width;
     const h = this.scale.height;
@@ -179,7 +227,7 @@ function create(this: Phaser.Scene) {
         // 未在游戏状态，限制移动
         if (!sharedState.isRunningGame.value) return;
         // 被炸弹炸限制移动
-        if (this.isStunned) return;
+        if (sharedState.isStunned.value) return;
 
         if (pointer.isDown && this.lastPointerX !== null) {
             const dx = pointer.x - this.lastPointerX;
@@ -248,18 +296,25 @@ function update(this: Phaser.Scene) {
 
         this.timer = this.time.addEvent({
             delay: 1000,
-            callback: () => {
+            callback: async () => {
                 this.gameTime--;
                 sharedState.gameTimeCounter.value = this.gameTime;
 
-                if (this.gameTime <= 0) {
+                if (sharedState.isRunningGame.value && this.gameTime <= 0) {
                     sharedState.isRunningGame.value = false;
-
                     this.spawnTimer.remove();
                     this.timer.remove();
-                    sharedState.isPopGameOver.value = true; // 开启游戏结束弹窗
-
+                    sharedState.isStunned.value = false; // 防止游戏结束后又接了个炸弹，导致下轮游戏无法移动
+                    //sharedState.isPopGameOver.value = true; // 开启游戏结束弹窗
                     console.log('游戏结束');
+                    // 判断积分，如果大于60，则弹成功界面，如果小 于60则弹失败界面
+                    // isSuccess.value = score.value >= 60 ? true : false;
+                    isSuccess.value = false;    // 倒时j结束一律认为挑战失败
+                    prizeGrade.value = 5;   // 设置一个无关紧要的奖
+                    isPopDrawResult.value = false;  // 隐藏中奖结果弹窗
+                    isShowResultPage.value = true;  // 显示结果弹窗
+                    // 同步游戏结果
+                   submitGameResult();
                 }
             },
             loop: true
@@ -279,35 +334,24 @@ function update(this: Phaser.Scene) {
         if (distance < 50) {
             if (item.type === 'candy') {
                 // 如果是在眩晕状态，不进行计分
-                if (this.isStunned) return;
+                if (sharedState.isStunned.value) return;
                 // 糖果加分
-                sharedState.score.value += 1;
+                sharedState.score.value = Math.min(sharedState.score.value + 3, maxScore);
                 // 触发加分动画
-                addScoreEffect(1);
+                addScoreEffect(3);
                 // 播放声音
                 this.sound.play('audio-candy', { volume: 0.5 });
             }
             if (item.type === 'chilli') {
                 // 如果是在眩晕状态，不进行计分
-                if (this.isStunned) return;
+                if (sharedState.isStunned.value) return;
                 // 辣椒加分
-                sharedState.score.value += 3;
-                addScoreEffect(3);
+                sharedState.score.value = Math.min(sharedState.score.value + 5, maxScore);
+                addScoreEffect(5);
                 this.sound.play('audio-chilli', { volume: 0.5 });
             }
             if (item.type === 'bomb') {
-                // 如果连续碰撞，只延长时间，不重新播放动画
-                // if (this.isStunned) {
-                //     // ❗只延长时间，不重新播放动画
-                //     this.stunTimer.reset({
-                //         delay: 2000,
-                //         callback: this.stunTimer.callback,
-                //         callbackScope: this
-                //     })
-                //     return
-                // }
-
-                this.isStunned = true
+                sharedState.isStunned.value = true;
                 this.sound.play('audio-bomb', { volume: 0.5 });
                 // ❗先清掉所有旧动画
                 this.tweens.killTweensOf(this.player)
@@ -336,18 +380,35 @@ function update(this: Phaser.Scene) {
                 })
                 // ❗ 清掉旧的延时（避免叠加）
                 if (this.stunTimer) {
-                    this.stunTimer.remove()
+                    this.stunTimer.remove();
                 }
                 // 2秒恢复
                 this.stunTimer = this.time.delayedCall(2000, () => {
-                    this.isStunned = false
-                    this.player.setTexture('player')
-                    this.player.alpha = 1
+                    sharedState.isStunned.value = false;
+                    this.player.setTexture('player');
+                    this.player.alpha = 1;
                 })
             }
             // 移除
             item.destroy()
             this.items.splice(index, 1)
+            // 如果在时间内积分满了，则直接跳转到成功结果页面
+            if (score.value >= maxScore) {
+                // 防止重复进入
+                if (!sharedState.isRunningGame.value) return;
+                // 1. 先让游戏停止
+                sharedState.isRunningGame.value = false;
+                this.spawnTimer.remove();
+                this.timer.remove();
+                sharedState.isStunned.value = false; // 防止最后又接了个炸弹，导致下轮游戏无法移动
+                // 2. 成功页面
+                isSuccess.value = true;
+                prizeGrade.value = 5;   // 设置一个无关紧要的奖
+                isPopDrawResult.value = false;  // 隐藏中奖结果弹窗
+                isShowResultPage.value = true;  // 显示结果弹窗
+                // 3. 同步游戏结果
+                submitGameResult();
+            }
         }
         // 掉出屏幕
         if (item.y > h) {
@@ -368,7 +429,16 @@ function spawnItem (this: Phaser.Scene) {
         config.key
     )
     item.type = config.type
-    item.speed = Phaser.Math.Between(3, 6)
+    // item.speed = Phaser.Math.Between(3, 6)
+    // 游戏进度（0~1）
+    const progress = 1 - (this.gameTime / gameTimeLimit)
+    // 基础速度：前期3，后期10
+    const baseSpeed = Phaser.Math.Linear(3, 10, progress)
+    // 再加一点随机浮动
+    item.speed = Phaser.Math.FloatBetween(
+        baseSpeed - 1,
+        baseSpeed + 1
+    )
     // 根据类型设置大小
     // if (item.type === 'candy') {
     //     item.setScale(0.3)
@@ -387,10 +457,49 @@ function spawnItem (this: Phaser.Scene) {
 /////////////////////////////////////////
 //              游戏结果页面             //
 /////////////////////////////////////////
-const isShowResultPage = ref(true); // 是否显示结果页面
-const isSuccess = ref(true);    // 是否挑战成功
+const isShowResultPage = ref(false); // 是否显示结果页面
+const isSuccess = ref(false);    // 是否挑战成功
 const isPopDrawResult = ref(false);  // 是否中奖结果窗体
-const prizeGrade = ref(3);  // 1为免单，2为减5，3为40-8，4为100-10
+const prizeGrade = ref(5);  // 1为花束礼盒2折券，2为五连包2折券，3单品5元券，4为40-8，5为100-10
+const qrcode_url = ref(''); // 奖券二维码地址
+// 抽奖
+async function luckydraw() {
+    const game_info = {
+        user_id,
+        create_time,
+        game_start_time,
+        game_end_time,
+        game_time: game_end_time - game_start_time, 
+        score: sharedState.score.value
+    }
+    console.log("游戏抽奖信息：", game_info);
+    try {
+        const res = await luckydrawAPI(game_info);
+        console.log("服务器返回结果：", res);
+        if (res.data.errcode === 0) {
+            console.log("抽奖成功");
+            prizeGrade.value = res.data.data?.prize_code;
+            qrcode_url.value = res.data.data?.qrcode_url;
+            isPopDrawResult.value = true;
+        } else {
+            console.log("抽奖失败:", res.data.errmsg);
+        }
+    } catch (err) {
+        console.log("请求失败:", err);
+    }
+    // isPopDrawResult.value = true;
+    // prizeGrade.value = 1;
+}
+
+// 切换奖品
+function deubugChangePrize() {
+    if (prizeGrade.value == 5) {
+        prizeGrade.value = 1;
+    } else 
+    {
+        prizeGrade.value += 1;
+    }
+}
 </script>
 
 <template>
@@ -449,33 +558,35 @@ const prizeGrade = ref(3);  // 1为免单，2为减5，3为40-8，4为100-10
                 <div class="success-tips"></div>
                 <div class="success-noodles"></div>
                 <div class="success-decoration"></div>
-                <div class="btn-luckydraw"></div>
+                <div class="btn-luckydraw" @click="luckydraw"></div>
                 <!-- 中奖结果弹窗 -->
                 <div v-show="isPopDrawResult" class="draw-result-container">
-                    <div class="btn-back"></div>
-                    <div class="btn-share"></div>
+                    <div class="btn-back" @click="restartGame"></div>
+                    <!-- <div class="btn-share"></div> -->
                     <!-- 弹窗容器 -->
                     <div class="pop-container">
                         <div class="pop-bg"></div>
-                        <div class="ticket-title">
-                            <div v-show="prizeGrade=='1'" class="ticket-title-free"></div>
-                            <div v-show="prizeGrade=='2'" class="ticket-title-5"></div>
-                            <div v-show="prizeGrade=='3'" class="ticket-title-40-8"></div>
-                            <div v-show="prizeGrade=='4'" class="ticket-title-100-10"></div>
-                        </div>
                         <div class="ticket-container">
-                            <img v-show="prizeGrade=='1'" src="https://www.mbcstyle.cn/projects/static/samyang2026game/result/ticket-pic-free.png" alt="">
-                            <img v-show="prizeGrade=='2'" src="https://www.mbcstyle.cn/projects/static/samyang2026game/result/ticket-pic-5.png" alt="">
-                            <img v-show="prizeGrade=='3'" src="https://www.mbcstyle.cn/projects/static/samyang2026game/result/ticket-pic-40-8.png" alt="">
-                            <img v-show="prizeGrade=='4'" src="https://www.mbcstyle.cn/projects/static/samyang2026game/result/ticket-pic-100-10.png" alt="">
+                            <img v-show="prizeGrade=='1'" src="https://www.mbcstyle.cn/projects/static/samyang2026game/result/ticket-pic-flower.png" alt="">
+                            <img v-show="prizeGrade=='2'" src="https://www.mbcstyle.cn/projects/static/samyang2026game/result/ticket-pic-5pocket.png" alt="">
+                            <img v-show="prizeGrade=='3'" src="https://www.mbcstyle.cn/projects/static/samyang2026game/result/ticket-pic-5yuan.png" alt="">
+                            <img v-show="prizeGrade=='4'" src="https://www.mbcstyle.cn/projects/static/samyang2026game/result/ticket-pic-40-8.png" alt="">
+                            <img v-show="prizeGrade=='5'" src="https://www.mbcstyle.cn/projects/static/samyang2026game/result/ticket-pic-100-10.png" alt="">
                         </div>
-                        <div class="peppo-pic"></div>
-                        <div class="candy"></div>
-                        <div class="btn-close"></div>
+                        <div class="peppo-pic" @click="deubugChangePrize"></div>
+                        <div v-show="prizeGrade=='1'" class="ticket-title-flower"></div>
+                        <div v-show="prizeGrade=='2'" class="ticket-title-5pocket"></div>
+                        <div v-show="prizeGrade=='3'" class="ticket-title-5yuan"></div>
+                        <div v-show="prizeGrade=='4'" class="ticket-title-40-8"></div>
+                        <div v-show="prizeGrade=='5'" class="ticket-title-100-10"></div>
+                        <!-- <div class="btn-close"></div> -->
                     </div>
                     <!-- 扫码容器 -->
                     <div class="qrcode-container">
-
+                        <div class="qrcode">
+                            <!-- <img src="https://www.mbcstyle.cn/projects/static/samyang2026game/qrcode/mockup_code.jpg" alt=""> -->
+                            <img :src="qrcode_url" alt="">
+                        </div>
                     </div>
                 </div>
             </div>
@@ -760,35 +871,55 @@ const prizeGrade = ref(3);  // 1为免单，2为减5，3为40-8，4为100-10
                         background: url("https://www.mbcstyle.cn/projects/static/samyang2026game/result/pop-bg.png") top center no-repeat;
                         background-size: 100% 100%;
                     }
-                    .ticket-title {
+                    .ticket-title-flower {
                         position: absolute;
                         left: 50%;
-                        transform: translateX(-50%);
-                        top: .5rem;
-                        .ticket-title-free {
-                            width: 3.6666rem;
-                            height: 1.0733rem;
-                            background: url("https://www.mbcstyle.cn/projects/static/samyang2026game/result/ticket-title-free.png") top center no-repeat;
-                            background-size: 100% 100%;
-                        }
-                        .ticket-title-5 {
-                            width: 3.6666rem;
-                            height: 1.0666rem;
-                            background: url("https://www.mbcstyle.cn/projects/static/samyang2026game/result/ticket-title-5.png") top center no-repeat;
-                            background-size: 100% 100%;
-                        }
-                        .ticket-title-40-8 {
-                            width: 3.8533rem;
-                            height: .6466rem;
-                            background: url("https://www.mbcstyle.cn/projects/static/samyang2026game/result/ticket-title-40-8.png") top center no-repeat;
-                            background-size: 100% 100%;
-                        }
-                        .ticket-title-100-10 {
-                            width: 3.8066rem;
-                            height: .6733rem;
-                            background: url("https://www.mbcstyle.cn/projects/static/samyang2026game/result/ticket-title-100-10.png") top center no-repeat;
-                            background-size: 100% 100%;
-                        }
+                        transform: translateX(-51%);
+                        top: .05rem;
+                        width: 3.8533rem;
+                        height: 1.62rem;
+                        background: url("https://www.mbcstyle.cn/projects/static/samyang2026game/result/ticket-title-flower.png") top center no-repeat;
+                        background-size: 100% 100%;
+                    }
+                    .ticket-title-5pocket {
+                        position: absolute;
+                        left: 50%;
+                        transform: translateX(-52%);
+                        top: .05rem;
+                        width: 4.0133rem;
+                        height: 1.7666rem;
+                        background: url("https://www.mbcstyle.cn/projects/static/samyang2026game/result/ticket-title-5pocket.png") top center no-repeat;
+                        background-size: 100% 100%;
+                    }
+                    .ticket-title-5yuan {
+                        position: absolute;
+                        left: 50%;
+                        transform: translateX(-52%);
+                        top: .05rem;
+                        width: 4.0133rem;
+                        height: 1.7666rem;
+                        background: url("https://www.mbcstyle.cn/projects/static/samyang2026game/result/ticket-title-5yuan.png") top center no-repeat;
+                        background-size: 100% 100%;
+                    }
+                    .ticket-title-40-8 {
+                        position: absolute;
+                        left: 50%;
+                        transform: translateX(-49%);
+                        top: .05rem;
+                        width: 4.2933rem;
+                        height: 1.54rem;
+                        background: url("https://www.mbcstyle.cn/projects/static/samyang2026game/result/ticket-title-40-8.png") top center no-repeat;
+                        background-size: 100% 100%;
+                    }
+                    .ticket-title-100-10 {
+                        position: absolute;
+                        left: 50%;
+                        transform: translateX(-49%);
+                        top: .05rem;
+                        width: 4.2933rem;
+                        height: 1.54rem;
+                        background: url("https://www.mbcstyle.cn/projects/static/samyang2026game/result/ticket-title-100-10.png") top center no-repeat;
+                        background-size: 100% 100%;
                     }
                     .ticket-container {
                         position: absolute;
@@ -811,16 +942,6 @@ const prizeGrade = ref(3);  // 1为免单，2为减5，3为40-8，4为100-10
                         background-size: 100% 100%;
 
                     }
-                    .candy {
-                        position: absolute;
-                        left: 50%;
-                        transform: translateX(-50%);
-                        top: 0;
-                        width: 4.2rem;
-                        height: 1.54rem;
-                        background: url("https://www.mbcstyle.cn/projects/static/samyang2026game/result/candy.png") top center no-repeat;
-                        background-size: 100% 100%;
-                    }
                     .btn-close {
                         position: absolute;
                         left: 50%;
@@ -836,11 +957,24 @@ const prizeGrade = ref(3);  // 1为免单，2为减5，3为40-8，4为100-10
                     position: absolute;
                     left: 50%;
                     transform: translateX(-50%);
-                    bottom: 1.1rem;
+                    bottom: 1.8rem;
                     width: 3.76rem;
                     height: 1.6533rem;
                     background: url("https://www.mbcstyle.cn/projects/static/samyang2026game/result/tips.png") top center no-repeat;
                     background-size: 100% 100%;
+                    // background-color: skyblue;
+                    .qrcode {
+                        position: absolute;
+                        top: .15rem;
+                        right: .14rem;
+                        width: 1.36rem;
+                        height: 1.36rem;
+                        // background-color: pink;
+                        img {
+                            width: 100%;
+                            height: 100%;
+                        }
+                    }
                 }
 
             }

@@ -2,8 +2,6 @@ import { createRouter, createWebHistory } from 'vue-router'
 // lego cny
 import Index from '../views/Index/index.vue'
 import Taste from '../views/Taste/index.vue'
-import Check from '../views/Check/index.vue'
-import Result from '../views/Result/index.vue'
 import Game from '../views/Game/index.vue'
 
 const router = createRouter({
@@ -23,16 +21,6 @@ const router = createRouter({
       path: '/taste',
       name: 'taste',
       component: Taste
-    },
-    {
-      path: '/check',
-      name: 'check',
-      component: Check
-    },
-    {
-      path: '/result',
-      name: 'result',
-      component: Result
     },
     {
       path: '/game',
