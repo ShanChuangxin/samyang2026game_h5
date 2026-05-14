@@ -49,6 +49,11 @@ function debugToResultPage() {
 
     <div v-show="isShowAgreement" class="agreement-container">
       <div class="agreement">
+        <div class="text-content">
+          <div class="scroll">
+            <div class="ruler"></div>
+          </div>
+        </div>
         <div class="agreement-btn" @click="closeAgreementPop"></div>
       </div>
     </div>
@@ -132,8 +137,32 @@ function debugToResultPage() {
           position: relative;
           width: 3.8333rem;
           height: 5.5333rem;
-          background: url("https://www.mbcstyle.cn/projects/static/samyang2026game/taste/agreement.png") top center no-repeat;
+          background: url("https://www.mbcstyle.cn/projects/static/samyang2026game/taste/agreement-bg.png") top center no-repeat;
           background-size: 100% 100%;
+          .text-content {
+            margin-top: 1rem;
+            margin-left: 50%;
+            transform: translateX(-50%);
+            width: 80%;
+            height: 71%;
+            // background-color: pink;
+            .scroll {
+              height: 100%;
+              overflow: hidden;
+              overflow-y: auto;
+              -webkit-overflow-scrolling: touch;  // 微信 + ios滚动ww优化
+              display: flex;
+              justify-content: center;
+              .ruler {
+                  margin-top: 0;
+                  width: 2.84rem;
+                  height: 22.1866rem;
+                  background: url("https://www.mbcstyle.cn/projects/static/samyang2026game/taste/agreement-ruler.png") bottom center no-repeat;
+                  background-size: 100% 100%;
+                  margin-bottom: .4rem;
+              }
+            }
+          }
           .agreement-btn {
               position: absolute;
               bottom: 0;

@@ -487,12 +487,14 @@ async function luckydraw() {
     } catch (err) {
         console.log("请求失败:", err);
     }
+
     // isPopDrawResult.value = true;
     // prizeGrade.value = 1;
 }
 
 // 切换奖品
 function deubugChangePrize() {
+    return;
     if (prizeGrade.value == 5) {
         prizeGrade.value = 1;
     } else 
