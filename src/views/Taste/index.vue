@@ -31,16 +31,13 @@ function navigateToGamePage() {
 function closeAgreementPop() {
   isShowAgreement.value = false;
 }
-function debugToResultPage() {
-  router.replace('/result');
-}
 
 </script>
 
 <template>
   <div class="page-body">
     <img src="https://www.mbcstyle.cn/projects/static/samyang2026game/taste/bg.jpg" alt="" class="bg">
-    <div class="logo-brand" @click="debugToResultPage"></div>
+    <div class="logo-brand"></div>
     <div class="logo-noodle"></div>
     <div class="slogan"></div>
     <div class="noodles"></div>
